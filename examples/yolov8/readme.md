@@ -3,7 +3,9 @@
 ## 0. Requirements
 
 ```bash
-pip install -r requirements.txt
+conda create -n pruning python=3.9
+conda activate pruning
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 Tested environment:
 ```
@@ -20,7 +22,7 @@ This example was implemented by [@Hyunseok-Kim0 (Hyunseok Kim)](https://github.c
 git clone https://github.com/ultralytics/ultralytics.git 
 cp yolov8_pruning.py ultralytics/
 cd ultralytics 
-git checkout 44c7c3514d87a5e05cfb14dba5a3eeb6eb860e70 # for compatibility
+git checkout 6dffa0cef3e30e765b1622d5cc02d57b04d7ee8b # for compatibility
 ```
 
 #### Modification

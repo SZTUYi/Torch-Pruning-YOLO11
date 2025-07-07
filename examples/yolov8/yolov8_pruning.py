@@ -14,11 +14,10 @@ from matplotlib import pyplot as plt
 from ultralytics import YOLO, __version__
 from ultralytics.nn.modules import Detect, C2f, Conv, Bottleneck
 from ultralytics.nn.tasks import attempt_load_one_weight
-from ultralytics.yolo.engine.model import TASK_MAP
-from ultralytics.yolo.engine.trainer import BaseTrainer
-from ultralytics.yolo.utils import yaml_load, LOGGER, RANK, DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS
-from ultralytics.yolo.utils.checks import check_yaml
-from ultralytics.yolo.utils.torch_utils import initialize_weights, de_parallel
+from ultralytics.engine.trainer import BaseTrainer
+from ultralytics.utils import YAML, LOGGER, RANK, DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS
+from ultralytics.utils.checks import check_yaml
+from ultralytics.utils.torch_utils import initialize_weights, de_parallel
 
 import torch_pruning as tp
 
@@ -239,15 +238,22 @@ def train_v2(self: YOLO, pruning=False, **kwargs):
     overrides.update(kwargs)
     if kwargs.get('cfg'):
         LOGGER.info(f"cfg file passed. Overriding default params with {kwargs['cfg']}.")
-        overrides = yaml_load(check_yaml(kwargs['cfg']))
+        overrides = YAML.load(check_yaml(kwargs['cfg']))
     overrides['mode'] = 'train'
     if not overrides.get('data'):
         raise AttributeError("Dataset required but missing, i.e. pass 'data=coco128.yaml'")
     if overrides.get('resume'):
         overrides['resume'] = self.ckpt_path
 
+    # 修复 pruning 模式下的 model 参数问题
+    if pruning:
+        # 在 pruning 模式下，提供一个有效的模型路径来避免 None 错误
+        # 这个路径不会被实际使用，因为我们会在后面直接替换模型
+        if not overrides.get('model'):
+            overrides['model'] = 'yolov8n.pt'  # 使用默认模型名称作为占位符
+
     self.task = overrides.get('task') or self.task
-    self.trainer = TASK_MAP[self.task][1](overrides=overrides, _callbacks=self.callbacks)
+    self.trainer = self.task_map[self.task]['trainer'](overrides=overrides, _callbacks=self.callbacks)
 
     if not pruning:
         if not overrides.get('resume'):  # manually set model only if not resuming
@@ -257,7 +263,7 @@ def train_v2(self: YOLO, pruning=False, **kwargs):
     else:
         # pruning mode
         self.trainer.pruning = True
-        self.trainer.model = self.model
+        self.trainer.model = self.model  # 直接使用现有的已剪枝模型
 
         # replace some functions to disable half precision saving
         self.trainer.save_model = save_model_v2.__get__(self.trainer)
@@ -276,7 +282,7 @@ def prune(args):
     # load trained yolov8 model
     model = YOLO(args.model)
     model.__setattr__("train_v2", train_v2.__get__(model))
-    pruning_cfg = yaml_load(check_yaml(args.cfg))
+    pruning_cfg = YAML.load(check_yaml(args.cfg))
     batch_size = pruning_cfg['batch']
 
     # use coco128 dataset for 10 epochs fine-tuning each pruning iteration step

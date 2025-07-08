@@ -320,6 +320,10 @@ def prune(args):
     nparams_list.append(100)
     map_list.append(init_map)
     pruned_map_list.append(init_map)
+    print("\n=== Model Structure Before Pruning ===")
+    print(f"Model: {model.model.__class__.__name__}")
+    print(f"Total parameters: {sum(p.numel() for p in model.model.parameters()):,}")
+    print(f"Trainable parameters: {sum(p.numel() for p in model.model.parameters() if p.requires_grad):,}")
     print(f"Before Pruning: MACs={base_macs / 1e9: .5f} G, #Params={base_nparams / 1e6: .5f} M, mAP={init_map: .5f}")
 
     # prune same ratio of filter based on initial size
@@ -350,6 +354,10 @@ def prune(args):
         )
 
         pruner.step()
+        
+        print(f"\n=== Model Structure After Pruning Step {i + 1} ===")
+        print(f"Total parameters: {sum(p.numel() for p in model.model.parameters()):,}")
+        print(f"Trainable parameters: {sum(p.numel() for p in model.model.parameters() if p.requires_grad):,}")
         
         # pre fine-tuning validation
         pruning_cfg['name'] = f"step_{i}_pre_val"
